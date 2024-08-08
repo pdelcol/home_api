@@ -9,17 +9,14 @@ use tracing_subscriber;
 async fn main() {
     tracing_subscriber::fmt::init();
 
-    // build our application with a route
-    let app = Router::new()
-        // `GET /` goes to `root`
-        .route("/ts", get(health_check));
-    // run our app with hyper, listening globally on port 3000
+    let app = Router::new().route("/ts", get(health_check));
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+
     info!("App is running");
+
     axum::serve(listener, app).await.unwrap();
 }
 
-// basic handler that responds with a static string
 async fn health_check() -> (StatusCode, Json<Option<Timestamp>>) {
     let start = SystemTime::now();
     let since_the_epoch = match start.duration_since(UNIX_EPOCH) {
