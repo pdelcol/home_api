@@ -8,5 +8,6 @@ axum = { version = "0.7.5", features = ["ws"] }
 postgres = "0.19.8"
 serde = { version = "1.0.205", features = ["derive"] }
 tokio = { version = "1.39.2", features = ["full", "tracing"] }
+tokio-postgres = "0.7.11"
 tracing = { version = "0.1.40", features = ["async-await", "log"] }
 tracing-subscriber = "0.3.18"
