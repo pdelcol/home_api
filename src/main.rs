@@ -1,12 +1,11 @@
-use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
+use axum::{http::StatusCode, middleware, routing::get, routing::post, Json, Router};
+mod auth;
 mod database;
+mod user;
+use chrono::Utc;
 use serde::Serialize;
-use std::{
-    sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::sync::Arc;
 use tokio_postgres::Client;
-use tracing::error;
 use tracing_subscriber;
 
 #[derive(Clone)]
@@ -28,7 +27,14 @@ async fn main() {
 
     let app = Router::new()
         .route("/ts", get(health_check))
-        .route("/users", get(check_database_call))
+        .route("/signin", post(auth::sign_in))
+        .route(
+            "/user",
+            get(user::get_users).layer(middleware::from_fn_with_state(
+                state.clone(),
+                auth::authorize,
+            )),
+        )
         .with_state(state);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 
@@ -36,34 +42,14 @@ async fn main() {
 }
 
 async fn health_check() -> (StatusCode, Json<Option<Timestamp>>) {
-    let start = SystemTime::now();
-    let since_the_epoch = match start.duration_since(UNIX_EPOCH) {
-        Ok(time) => time,
-        Err(_) => {
-            error!("Time went backwards");
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(None));
-        }
-    };
-
     let timestamp = Timestamp {
-        ts: since_the_epoch.as_secs(),
+        ts: Utc::now().timestamp(),
     };
 
     return (StatusCode::OK, Json(Some(timestamp)));
 }
 
-async fn check_database_call(
-    State(state): State<AppState>,
-) -> (StatusCode, Json<Option<Vec<String>>>) {
-    let user_list = match database::fetch_users(Arc::clone(&state.database)).await {
-        Ok(users) => users,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(None)),
-    };
-
-    return (StatusCode::OK, Json(Some(user_list)));
-}
-
 #[derive(Serialize)]
 struct Timestamp {
-    ts: u64,
+    ts: i64,
 }
